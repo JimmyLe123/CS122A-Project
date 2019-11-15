@@ -1,0 +1,165 @@
+/*
+* Name & E-mail: Jimmy Le jle071@ucr.edu
+* Lab Section: 23
+* Assignment: CS122A Project
+*
+* I acknowledge all content contained herein,excluding template or example code, is my own original work.
+*
+* Source for motion sensor code: https://www.gadgetronicx.com/pir-motion-sensor-interface-with-avr/
+*/
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include "keypad.h"
+#include "nokia5110.h"
+#include "bit.h"
+#include "nokia5110.c"
+#include "timer.h"
+#include "PWM.h"
+unsigned char KeypadInput;
+unsigned char inputLock[5];			  //Have an array to store the inputs of the user.
+//unsigned char inputUnlock[5]; 
+unsigned char timecnt = 0;
+unsigned char count = 0;			    //A count to individually insert the inputs of the keypad into the array 
+unsigned char Locked = 0;			    //To set the motion sensor alarm on/off
+
+enum KeyPadSM{Init, Press, PressHold, EnterInput, Lock}keyState;
+enum MotionSM{Init1, WaitMotion}motionState;
+
+void tick_Keypad()
+{
+	switch(keyState)
+	{
+		case Init:
+			keyState = Press;
+		break;
+		
+		case Press:
+			KeypadInput = GetKeypadKey();
+			if(KeypadInput != '\0')
+			{
+				keyState = PressHold;
+			}
+		break;
+		
+		case PressHold:
+			KeypadInput = GetKeypadKey();
+			if(KeypadInput)
+			{
+				PORTA = 0x02;
+				keyState = PressHold;
+			}
+			else if(KeypadInput == '\0')
+			{
+				PORTA = 0x03;
+				keyState = EnterInput;
+			}
+		break;
+
+		case EnterInput:
+			if(count < 3)
+			{
+				inputLock[count] = KeypadInput;
+				count++;
+				keyState = Press;
+			}
+			else if(count == 3)
+			{
+				count = 0;
+				keyState = Lock; 
+			}
+		break;
+		
+		case Lock:
+			Locked = 1;
+			PORTA = 0x04;
+		keyState =Lock;
+		break;
+	}
+	switch(keyState)
+	{
+		case Init:
+		break;
+		
+		case Press:
+			PORTA = 0x01;
+		break;
+	
+		case PressHold:
+		break;
+		
+		case EnterInput:
+		break;
+		
+		case Lock:
+		break;
+	}
+}	
+
+void tick_Motion()
+{
+	switch (motionState)
+	{
+		case Init1:
+			motionState = WaitMotion;
+		break;
+		
+		case WaitMotion:
+		while(Locked == 1)
+		{
+			if((PINB&(1<<0)))         // check for sensor pin PB0 using bit
+			{
+				
+				if(timecnt < 10)
+				{
+					PORTD = 0x03;           //Test LED on
+					set_PWM(1000);		    // buzzer on
+					_delay_ms(100);
+					PORTD = 0x00;
+					timecnt++;
+				}
+				else if (timecnt == 10)
+				{
+					set_PWM(0);
+					timecnt = 0;
+				}
+			}
+			else
+			{
+				PORTD=0x00;			 //Test LED off
+				set_PWM(0);			 // buzzer off
+			}
+		}
+		motionState = WaitMotion;
+		break;
+	}
+	
+	switch(motionState)
+	{
+		case Init1:
+		break;
+		
+		case WaitMotion:
+		break;	
+	}
+}
+
+int main(void)
+{
+	DDRA = 0xFF; PORTA = 0x00;	//Set port A to be output
+	DDRB = 0xFE; PORTB = 0x01;  //Only set B0 to be input
+	DDRC = 0xF0; PORTC = 0x0F;  //Set lower half of port C to be input and the upper half to be output
+ 	DDRD = 0xFF; PORTD = 0x00;  //Set port D to be output
+	keyState = Init;
+	motionState = Init1;
+	TimerSet(100);
+	TimerOn();
+	PWM_on();					//Turn on the pulse width modulator
+    while (1) 
+    {
+		tick_Keypad();	
+		tick_Motion();
+    }	
+	return (0);
+}
+
