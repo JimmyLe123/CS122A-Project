@@ -1,10 +1,9 @@
 /*
 * Name & E-mail: Jimmy Le jle071@ucr.edu
 * Lab Section: 23
-* Assignment: CS122A Project
+* Assignment: CS122A Project Milestone 1
 *
 * I acknowledge all content contained herein,excluding template or example code, is my own original work.
-*
 * Source for motion sensor code: https://www.gadgetronicx.com/pir-motion-sensor-interface-with-avr/
 */
 
@@ -17,13 +16,16 @@
 #include "timer.h"
 #include "PWM.h"
 unsigned char KeypadInput;
-unsigned char inputLock[5];			  //Have an array to store the inputs of the user.
-//unsigned char inputUnlock[5]; 
+unsigned char presetCode[4] = {'0','0','0','0'};
+unsigned char inputLock[4] = {'0','0','0','0'};			//Code to enter from user when 'locking' (activating motion sensor).
+//unsigned char inputUnlock[4] = {'0','0','0','0'};		//Code to enter from user when 'unlocking' (deactivating motion sensor).
+unsigned char singleInput;
 unsigned char timecnt = 0;
-unsigned char count = 0;			    //A count to individually insert the inputs of the keypad into the array 
-unsigned char Locked = 0;			    //To set the motion sensor alarm on/off
+unsigned char count = 0;			//A count to individually insert the inputs of the keypad into the array
+unsigned char Index = 0;
+unsigned char Locked = 0;			//To set the motion sensor alarm on/off
 
-enum KeyPadSM{Init, Press, PressHold, EnterInput, Lock}keyState;
+enum KeyPadSM{Init, Press, PressHold, EnterInput, WaitRelease, Lock, PressUnlock, UnlockInput, WaitRelUnlock, Unlock}keyState;
 enum MotionSM{Init1, WaitMotion}motionState;
 
 void tick_Keypad()
@@ -31,49 +33,187 @@ void tick_Keypad()
 	switch(keyState)
 	{
 		case Init:
-			keyState = Press;
+		Index = 0;
+		keyState = Press;
 		break;
 		
 		case Press:
+		KeypadInput = GetKeypadKey();
+		if(KeypadInput != '\0')
+		{
+			keyState = PressHold;
+		}
+		else if (KeypadInput == '\0')
+		{
+			keyState = Press;
+		}
+		break;
+		
+		case PressHold:
+		if(KeypadInput != '\0')
+		{
+			switch (KeypadInput)
+			{
+				case '1':
+				PORTA = 0x01;
+				break;
+				case '2':
+				PORTA = 0x02;
+				break;
+				case '3':
+				PORTA = 0x03;
+				break;
+				case '4':
+				PORTA = 0x04;
+				break;
+				case '5':
+				PORTA = 0x05;
+				break;
+				case '6':
+				PORTA = 0x06;
+				break;
+				case '7':
+				PORTA = 0x07;
+				break;
+				case '8':
+				PORTA = 0x08;
+				break;
+				case '9':
+				PORTA = 0x09;
+				break;
+				case '0':
+				PORTA = 0x00;
+				break;
+				case 'A':
+				PORTA = 0x0A;
+				break;
+				case 'B':
+				PORTA = 0x0B;
+				break;
+				case 'C':
+				PORTA = 0x0C;
+				break;
+				case 'D':
+				PORTA = 0x0D;
+				break;
+				case '*':
+				PORTA = 0x0E;
+				break;
+				case '#':
+				PORTA = 0x0F;
+				break;
+			}
+			if(Locked == 0)
+			{
+				keyState = EnterInput;
+			}
+			else if(Locked == 1)
+			{
+				keyState = UnlockInput;
+			}
+		}
+		break;
+
+		case EnterInput:
+		if(KeypadInput != '\0')
+		{
+			inputLock[Index] = KeypadInput;
+			Index++;
+		}
+		keyState = WaitRelease;
+		if(Index == 4)
+		{
+			keyState = Lock;
+			Index = 0;
+		}
+		break;
+		
+		case WaitRelease:
+		KeypadInput = GetKeypadKey();
+		if(KeypadInput == '\0')
+		{
+			keyState = Press;
+		}
+		else
+		{
+			keyState = WaitRelease;
+		}
+		break;
+		
+		case Lock:
+		if(inputLock[0] == 'A' && inputLock[1] == 'B' && inputLock[2] == 'C' && inputLock[3] == 'D')
+		{
+			Locked = 1;
+			PORTA = 0x04;
+			keyState = PressUnlock;
+		}
+		else
+		{
+			PORTA = 0xA1;
+			for(int i = 0; i < 4; i++)
+			{
+				inputLock[i] = '0';
+			}
+			keyState = WaitRelease;
+		}
+		break;
+		
+		case PressUnlock:
 			KeypadInput = GetKeypadKey();
 			if(KeypadInput != '\0')
 			{
 				keyState = PressHold;
 			}
-		break;
-		
-		case PressHold:
-			KeypadInput = GetKeypadKey();
-			if(KeypadInput)
-			{
-				PORTA = 0x02;
-				keyState = PressHold;
-			}
 			else if(KeypadInput == '\0')
 			{
-				PORTA = 0x03;
-				keyState = EnterInput;
-			}
-		break;
-
-		case EnterInput:
-			if(count < 3)
-			{
-				inputLock[count] = KeypadInput;
-				count++;
-				keyState = Press;
-			}
-			else if(count == 3)
-			{
-				count = 0;
-				keyState = Lock; 
+				keyState = PressUnlock;
 			}
 		break;
 		
-		case Lock:
-			Locked = 1;
-			PORTA = 0x04;
-		keyState =Lock;
+		case UnlockInput:
+			if(KeypadInput != '\0')
+			{
+				inputUnlock[Index] = KeypadInput;
+				Index++;
+			}
+			keyState = WaitRelUnlock;
+			if(Index == 4)
+			{
+				keyState = Unlock;
+				Index = 0;
+			}
+		break;
+		
+		case WaitRelUnlock:
+			KeypadInput = GetKeypadKey();
+			if(KeypadInput == '\0')
+			{
+				keyState = PressUnlock;
+			}
+			else
+			{
+				keyState = WaitRelUnlock;
+			}
+			break;
+		break;
+		
+		case Unlock:
+			if(inputUnlock[0] == 'D' && inputUnlock[1] == 'C' && inputUnlock[2] == 'B' && inputUnlock[3] == 'A')
+			{
+				Locked = 0;
+				PORTA = 0x80;
+				keyState = Press;
+			}
+			else
+			{
+				PORTA = 0xA2;
+				Index = 0;
+				for(int i = 0; i < 4; i++)
+				{
+					inputUnlock[i] = '0';
+				}
+				keyState = Unlock;
+			}
 		break;
 	}
 	switch(keyState)
@@ -82,37 +222,56 @@ void tick_Keypad()
 		break;
 		
 		case Press:
-			PORTA = 0x01;
+		PORTA = 0x1F;
 		break;
-	
+		
 		case PressHold:
 		break;
 		
 		case EnterInput:
 		break;
 		
+		case WaitRelease:
+		//PORTA = 0xFF;
+		break;
+		
 		case Lock:
 		break;
+		
+		case PressUnlock:
+		PORTA = 0x08;
+		break;
+		
+		case UnlockInput:
+		PORTA = 0x10;
+		break;
+		
+		case WaitRelUnlock:
+		PORTA = 0xFF;
+		break;
+		
+		case Unlock:
+		break;
 	}
-}	
+}
 
 void tick_Motion()
 {
 	switch (motionState)
 	{
 		case Init1:
-			motionState = WaitMotion;
+		motionState = WaitMotion;
 		break;
 		
 		case WaitMotion:
-		while(Locked == 1)
+		if(Locked == 1)
 		{
-			if((PINB&(1<<0)))         // check for sensor pin PB0 using bit
+			if((PINB&(1<<0)))         		    // check for sensor pin PB0 using bit
 			{
 				
 				if(timecnt < 10)
 				{
-					PORTD = 0x03;           //Test LED on
+					PORTD = 0x60;               //Test LED on
 					set_PWM(1000);		    // buzzer on
 					_delay_ms(100);
 					PORTD = 0x00;
@@ -127,7 +286,7 @@ void tick_Motion()
 			else
 			{
 				PORTD=0x00;			 //Test LED off
-				set_PWM(0);			 // buzzer off
+				set_PWM(0);	 		// buzzer off
 			}
 		}
 		motionState = WaitMotion;
@@ -140,26 +299,25 @@ void tick_Motion()
 		break;
 		
 		case WaitMotion:
-		break;	
+		break;
 	}
 }
 
 int main(void)
 {
 	DDRA = 0xFF; PORTA = 0x00;	//Set port A to be output
-	DDRB = 0xFE; PORTB = 0x01;  //Only set B0 to be input
-	DDRC = 0xF0; PORTC = 0x0F;  //Set lower half of port C to be input and the upper half to be output
- 	DDRD = 0xFF; PORTD = 0x00;  //Set port D to be output
+	DDRB = 0xFE; PORTB = 0x01;  	//Only set B0 to be input
+	DDRC = 0xF0; PORTC = 0x0F;  	//Set lower half of port C to be input and the upper half to be output
+	DDRD = 0xFF; PORTD = 0x00;  	//Set port D to be output
 	keyState = Init;
 	motionState = Init1;
 	TimerSet(100);
 	TimerOn();
-	PWM_on();					//Turn on the pulse width modulator
-    while (1) 
-    {
-		tick_Keypad();	
+	PWM_on();			//Turn on the pulse width modulator
+	while (1)
+	{
+		tick_Keypad();
 		tick_Motion();
-    }	
+	}
 	return (0);
 }
-
