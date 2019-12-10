@@ -333,7 +333,7 @@ void tick_Motion()
 				{
 					if(timecnt < 10)
 					{
-						PORTD = 0x60;           			//Test LED on
+						PORTD = 0x20;           			//Test LED on
 						set_PWM(1000);		   			// buzzer on
 						_delay_ms(100);
 						PORTD = 0x00;
