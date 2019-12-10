@@ -28,7 +28,7 @@ unsigned char Locked = 0;									//To set the motion sensor alarm on/off
 enum KeyPadSM{Init, Press, PressHold, EnterInput, WaitRelease, Lock, LocktoUnlock, PressUnlock, UnlockInput, WaitRelUnlock, Unlock, UnlocktoLock}keyState;
 enum MotionSM{Init1, WaitMotion}motionState;
 
-void tick_Keypad()
+void tick_InputCode()
 {
 	switch(keyState)
 	{
@@ -383,7 +383,7 @@ int main(void)
 	PWM_on();										//Turn on the pulse width modulator
 	while (1)
 	{
-		tick_Keypad();
+		tick_InputCode();
 		tick_Motion();
 	}
 	return (0);
