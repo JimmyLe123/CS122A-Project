@@ -1,1 +1,2 @@
 # CS122A-Project
+This is a project that I have done for a course over in UCR. For the project, I have emulated a security motion sensor. When entering a 4 character code, that will activate the motion sensor. While the motion sensor is active, then the motion sensor will attempt to detect motion. When it has detected motion, then the buzzer will emit a loud noise that says the motion sensor has detected motion. To deactivate the motion sensor, you need to enter the code that was used to activate the motion sensor. If the code is incorrect, then you will need to try again.
